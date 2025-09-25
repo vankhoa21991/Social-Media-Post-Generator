@@ -105,8 +105,6 @@ export async function POST(req: Request) {
       includeEmoji
     );
 
-    console.log(model);
-
     const systemPrompt = `You are a skilled social media writer who creates ${tone.toLowerCase()} content that resonates with the audience. Your writing should:
 
 - Maintain a consistent ${tone.toLowerCase()} tone throughout
