@@ -13,12 +13,20 @@ const TONE_OPTIONS = [
   'Conversational'
 ] as const;
 
+const MODEL_OPTIONS = [
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+] as const;
+
 type ToneOption = typeof TONE_OPTIONS[number];
 
 interface GeneratePostParams {
   description: string;
   platform: string;
   tone: string;
+  model: string;
   wordLimit?: number;
   makeThread?: boolean;
   includeHashtags: boolean;
@@ -38,6 +46,7 @@ function Page() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tone, setTone] = useState<ToneOption>('Professional');
+  const [model, setModel] = useState('gemini-2.5-flash');
   const [includeHashtags, setIncludeHashtags] = useState(false);
   const [includeEmoji, setIncludeEmoji] = useState(false);
   const [postsToGenerate, setPostsToGenerate] = useState(1);
@@ -83,6 +92,7 @@ function Page() {
             description, 
             platform, 
             tone,
+            model,
             wordLimit: platform === 'linkedin' ? wordLimit : undefined,
             makeThread,
             includeHashtags,
@@ -283,6 +293,23 @@ function Page() {
                     >
                       {[1, 2, 3, 4, 5].map((num) => (
                         <option key={num} value={num}>{num} post{num > 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="model" className="block text-lg font-medium mb-3 text-black">
+                      AI Model
+                    </label>
+                    <select
+                      id="model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80 backdrop-blur-sm transition-all border border-gray-200 hover:border-purple-300"
+                      style={{ color: '#000000' }}
+                    >
+                      {MODEL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </div>

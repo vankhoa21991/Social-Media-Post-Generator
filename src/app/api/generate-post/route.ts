@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const getChatAIClient = (model: string) => {
+  const isGeminiModel = model.includes('gemini');
+
+  if (isGeminiModel) {
+    return new OpenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    });
+  } else {
+    return new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: "https://api.openai.com/v1"
+    });
+  }
+};
 
 const getPromptForPlatform = (
-  platform: string, 
-  description: string, 
-  makeThread: boolean, 
+  platform: string,
+  description: string,
+  makeThread: boolean,
   wordLimit: number,
   tone: string,
   includeHashtags: boolean,
@@ -31,7 +43,7 @@ Additional notes:
 - Focus on visual storytelling
 - Keep the tone engaging and authentic
 ${includeHashtags ? '- Add 3-5 relevant hashtags at the end' : ''}`;
-    
+
     case 'facebook':
       return `${basePrompt}
 Additional notes:
@@ -39,9 +51,9 @@ Additional notes:
 - Share insights or experiences naturally
 - Add a subtle call-to-action if relevant
 ${includeHashtags ? '- Add 1-2 relevant hashtags if needed' : ''}`;
-    
+
     case 'twitter':
-      return makeThread 
+      return makeThread
         ? `${basePrompt}
 Additional notes:
 - Break this into 3-5 connected tweets
@@ -54,7 +66,7 @@ Additional notes:
 - Keep it under 280 characters
 - Make it engaging and shareable
 ${includeHashtags ? '- Add 1-2 relevant hashtags' : ''}`;
-    
+
     case 'linkedin':
       return `${basePrompt}
 Additional notes:
@@ -63,7 +75,7 @@ Additional notes:
 - Focus on value and expertise
 - Keep paragraphs short and scannable
 ${includeHashtags ? '- Add 2-3 relevant professional hashtags' : ''}`;
-    
+
     default:
       return basePrompt;
   }
@@ -71,25 +83,28 @@ ${includeHashtags ? '- Add 2-3 relevant professional hashtags' : ''}`;
 
 export async function POST(req: Request) {
   try {
-    const { 
-      platform, 
-      description, 
-      makeThread, 
+    const {
+      platform,
+      description,
+      makeThread,
       wordLimit,
       tone,
+      model,
       includeHashtags,
       includeEmoji,
     } = await req.json();
 
     const prompt = getPromptForPlatform(
-      platform, 
-      description, 
-      makeThread, 
+      platform,
+      description,
+      makeThread,
       wordLimit,
       tone,
       includeHashtags,
       includeEmoji
     );
+
+    console.log(model);
 
     const systemPrompt = `You are a skilled social media writer who creates ${tone.toLowerCase()} content that resonates with the audience. Your writing should:
 
@@ -101,16 +116,18 @@ ${includeHashtags ? '- Include relevant hashtags that add value' : '- Exclude ha
 - Express emotions and enthusiasm through well-crafted words
 - Focus on creating genuine connections with the audience
 
-${platform === 'linkedin' 
-  ? 'For LinkedIn, maintain professionalism while being approachable and authentic.' 
-  : platform === 'twitter' && makeThread 
-    ? 'For Twitter threads, maintain a natural flow between tweets while keeping each one engaging.' 
-    : ''}`;
+${platform === 'linkedin'
+        ? 'For LinkedIn, maintain professionalism while being approachable and authentic.'
+        : platform === 'twitter' && makeThread
+          ? 'For Twitter threads, maintain a natural flow between tweets while keeping each one engaging.'
+          : ''}`;
+
+    const openai = getChatAIClient(model || "gemini-2.5-flash");
 
     const completion = await openai.chat.completions.create({
       messages: [
-        { 
-          role: "system", 
+        {
+          role: "system",
           content: systemPrompt
         },
         {
@@ -118,7 +135,7 @@ ${platform === 'linkedin'
           content: prompt
         }
       ],
-      model: "gpt-3.5-turbo",
+      model: model,
       temperature: 0.7,
     });
 
