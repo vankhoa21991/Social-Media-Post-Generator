@@ -92,6 +92,7 @@ export async function POST(req: Request) {
       model,
       includeHashtags,
       includeEmoji,
+      imageBase64,
     } = await req.json();
 
     const prompt = getPromptForPlatform(
@@ -124,17 +125,40 @@ ${platform === 'linkedin'
 
     const openai = getChatAIClient(model || "gemini-2.5-flash");
 
+    // Prepare messages array
+    const messages: any[] = [
+      {
+        role: "system",
+        content: systemPrompt
+      }
+    ];
+
+    // Add user message with or without image
+    if (imageBase64) {
+      messages.push({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: prompt
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: imageBase64
+            }
+          }
+        ]
+      });
+    } else {
+      messages.push({
+        role: "user",
+        content: prompt
+      });
+    }
+
     const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
+      messages,
       model: model,
       temperature: 0.7,
     });
