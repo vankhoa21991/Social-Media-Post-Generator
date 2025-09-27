@@ -653,7 +653,7 @@ function Page() {
                     <div>
                       <div className="text-6xl mb-4">✨</div>
                       <p>Your generated posts will appear here</p>
-                      <p className="text-sm text-gray-400 mt-2">Fill out the form on the left and click "Generate Posts"</p>
+                      <p className="text-sm text-gray-400 mt-2">Fill out the form on the left and click &quot;Generate Posts&quot;</p>
                     </div>
                   )}
                 </div>
