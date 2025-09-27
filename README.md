@@ -33,25 +33,23 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
 - Maintaining an active social media presence with varied content
 - Quick creation of multiple post variations for A/B testing
 
-## Installation Steps
+## Quick Start
+
+### Local Development
 
 1. Clone the repository:
     ```bash
     git clone https://github.com/yourusername/social-media-post-generator.git
-    ```
-
-2. Navigate to the project directory:
-    ```bash
     cd social-media-post-generator
     ```
 
-3. Install dependencies:
+2. Install dependencies:
     ```bash
     npm install
     ```
 
-4. Set up environment variables:
-   Create a `.env.local` file in the root directory with the following:
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory:
     ```bash
     OPENAI_API_KEY=your_openai_api_key
     GEMINI_API_KEY=your_gemini_api_key
@@ -61,12 +59,56 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
    - OpenAI: https://platform.openai.com/api-keys
    - Gemini: https://aistudio.google.com/app/apikey
    
-5. Run the development server:
+4. Run the development server:
     ```bash
     npm run dev
     ```
 
-6. Open your browser and navigate to `http://localhost:3000`
+5. Open your browser and navigate to `http://localhost:3000`
+
+### Deploy to Vercel
+
+1. **Push your code to GitHub** (if not already done)
+
+2. **Connect to Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Sign in with your GitHub account
+   - Click "New Project"
+   - Import your repository
+
+3. **Set Environment Variables**:
+   - In Vercel dashboard, go to your project settings
+   - Navigate to "Environment Variables"
+   - Add the following variables:
+     - `OPENAI_API_KEY`: Your OpenAI API key
+     - `GEMINI_API_KEY`: Your Google Gemini API key
+
+4. **Deploy**:
+   - Click "Deploy" in Vercel
+   - Your app will be live at `https://your-project-name.vercel.app`
+
+### Alternative: Deploy with Vercel CLI
+
+1. Install Vercel CLI:
+    ```bash
+    npm i -g vercel
+    ```
+
+2. Login to Vercel:
+    ```bash
+    vercel login
+    ```
+
+3. Deploy:
+    ```bash
+    vercel
+    ```
+
+4. Set environment variables:
+    ```bash
+    vercel env add OPENAI_API_KEY
+    vercel env add GEMINI_API_KEY
+    ```
 
 ## How to Use the Application
 
