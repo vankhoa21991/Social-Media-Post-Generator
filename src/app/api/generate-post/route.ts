@@ -95,6 +95,8 @@ export async function POST(req: Request) {
       imageBase64,
     } = await req.json();
 
+    console.log('Post generation request:', { platform, description, tone, model });
+
     const prompt = getPromptForPlatform(
       platform,
       description,
@@ -124,6 +126,7 @@ ${platform === 'linkedin'
     const openai = getChatAIClient(model || "gemini-2.5-flash");
 
     // Prepare messages array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages: any[] = [
       {
         role: "system",
