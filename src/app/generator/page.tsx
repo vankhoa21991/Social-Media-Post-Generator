@@ -22,15 +22,21 @@ export default function GeneratorPage() {
   const [includeHashtags, setIncludeHashtags] = useState(true);
   const [includeEmoji, setIncludeEmoji] = useState(true);
   const [postsToGenerate, setPostsToGenerate] = useState(1);
+  const [generateImage, setGenerateImage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setImageLoading(generateImage);
+    
     try {
-      const response = await fetch('/api/generate', {
+      // Generate post content
+      const response = await fetch('/api/generate-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,10 +55,35 @@ export default function GeneratorPage() {
 
       const data = await response.json();
       setGeneratedContent(data.content);
+
+      // Generate image if requested
+      if (generateImage) {
+        try {
+          const imageResponse = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              description,
+              platform,
+              tone,
+            }),
+          });
+
+          const imageData = await imageResponse.json();
+          if (imageData.success && imageData.imageData) {
+            setGeneratedImage(`data:${imageData.mimeType};base64,${imageData.imageData}`);
+          }
+        } catch (imageError) {
+          console.error('Error generating image:', imageError);
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+      setImageLoading(false);
     }
   };
 
@@ -60,6 +91,17 @@ export default function GeneratorPage() {
     navigator.clipboard.writeText(generatedContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadImage = () => {
+    if (generatedImage) {
+      const link = document.createElement('a');
+      link.href = generatedImage;
+      link.download = `social-media-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -170,7 +212,7 @@ export default function GeneratorPage() {
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {platform === 'twitter' && (
                 <div className="flex items-center space-x-3">
                   <label htmlFor="makeThread" className="text-lg font-medium text-black">
@@ -235,6 +277,30 @@ export default function GeneratorPage() {
                     }}></div>
                 </label>
               </div>
+
+              <div className="flex items-center space-x-3 bg-yellow-100 p-2 rounded">
+                <label htmlFor="generateImage" className="text-lg font-medium text-black">
+                  🖼️ Generate Image
+                </label>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="generateImage"
+                    checked={generateImage}
+                    onChange={(e) => {
+                      console.log('Generate Image toggle changed:', e.target.checked);
+                      setGenerateImage(e.target.checked);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 rounded-full peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" 
+                    style={{ 
+                      backgroundColor: generateImage ? '#4cb4b' : '#b5b5b3',
+                      borderColor: '#000000',
+                      border: '1px solid #000000'
+                    }}></div>
+                </label>
+              </div>
             </div>
 
             <button
@@ -246,10 +312,10 @@ export default function GeneratorPage() {
               {loading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-3"></div>
-                  Generating...
+                  {imageLoading ? 'Generating Post & Image...' : 'Generating Post...'}
                 </div>
               ) : (
-                'Generate Posts'
+                generateImage ? 'Generate Post & Image' : 'Generate Posts'
               )}
             </button>
           </form>
@@ -272,6 +338,32 @@ export default function GeneratorPage() {
                 <p className="whitespace-pre-wrap leading-relaxed select-all text-black">
                   {generatedContent}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {generatedImage && (
+            <div className="mt-8 p-8 rounded-2xl shadow-xl" style={{ backgroundColor: '#17179', borderColor: '#4cb4b' }}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-black">
+                  Generated Image
+                </h2>
+                <button
+                  onClick={handleDownloadImage}
+                  className="flex items-center px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 text-black"
+                  style={{ backgroundColor: '#4cb4b', color: '#000000' }}
+                >
+                  Download Image
+                </button>
+              </div>
+              <div className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={generatedImage}
+                  alt="Generated social media image"
+                  className="max-w-full h-auto rounded-xl shadow-lg"
+                  style={{ maxHeight: '500px' }}
+                />
               </div>
             </div>
           )}

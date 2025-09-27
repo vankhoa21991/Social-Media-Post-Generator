@@ -51,10 +51,12 @@ function Page() {
   const [includeHashtags, setIncludeHashtags] = useState(false);
   const [includeEmoji, setIncludeEmoji] = useState(false);
   const [postsToGenerate, setPostsToGenerate] = useState(1);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [generateImage, setGenerateImage] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
 
   // Set mounted state after hydration
   useEffect(() => {
@@ -99,7 +101,7 @@ function Page() {
         return;
       }
 
-      setSelectedImage(file);
+      // File is stored in the state for processing
 
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
@@ -123,7 +125,7 @@ function Page() {
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview);
     }
-    setSelectedImage(null);
+    // Clear image state
     setImagePreview(null);
     setImageBase64(null);
   };
@@ -152,15 +154,18 @@ function Page() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setImageLoading(generateImage);
     setCopied(false);
     setGeneratedContent([]);
+    setGeneratedImages([]);
     
     try {
       // Create array of promises for parallel execution
       const generatePromises = Array(postsToGenerate)
         .fill(null)
-        .map(() => 
-          generateSinglePost({ 
+        .map((_, index) => {
+          console.log(`Generating post ${index + 1} for platform:`, platform);
+          return generateSinglePost({ 
             description, 
             platform, 
             tone,
@@ -170,16 +175,101 @@ function Page() {
             includeHashtags,
             includeEmoji,
             imageBase64: imageBase64 || undefined,
-          })
-        );
+          });
+        });
 
       // Execute all API calls in parallel
       const results = await Promise.all(generatePromises);
       setGeneratedContent(results);
+
+      // Generate images if requested (one for each post)
+      if (generateImage) {
+        try {
+          console.log('Generating images for:', { description, platform, tone, postsToGenerate });
+          
+          // Create image generation promises for each post (with delays to avoid rate limiting)
+          const imagePromises = Array(postsToGenerate)
+            .fill(null)
+            .map(async (_, index) => {
+              // Add delay between requests to avoid rate limiting
+              if (index > 0) {
+                await new Promise(resolve => setTimeout(resolve, 2000 * index));
+              }
+              const maxRetries = 3;
+              let retryCount = 0;
+              
+              while (retryCount < maxRetries) {
+                try {
+                  console.log(`Generating image ${index + 1} for platform:`, platform, `(attempt ${retryCount + 1})`);
+                  
+                  const imageResponse = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                  body: JSON.stringify({
+                    description: description,
+                    platform,
+                    tone,
+                    imageBase64: imageBase64,
+                  }),
+                  });
+
+                  const imageData = await imageResponse.json();
+                  console.log(`Image ${index + 1} response:`, imageData);
+                  
+                  if (imageData.success && imageData.imageData) {
+                    return `data:${imageData.mimeType};base64,${imageData.imageData}`;
+                  } else {
+                    console.error(`Image ${index + 1} generation failed:`, imageData.error);
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                      console.log(`Retrying image ${index + 1} generation...`);
+                      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Wait before retry
+                      continue;
+                    }
+                    return null;
+                  }
+                } catch (imageError) {
+                  console.error(`Error generating image ${index + 1} (attempt ${retryCount + 1}):`, imageError);
+                  retryCount++;
+                  if (retryCount < maxRetries) {
+                    console.log(`Retrying image ${index + 1} generation after error...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Wait before retry
+                    continue;
+                  }
+                  return null;
+                }
+              }
+              
+              return null;
+            });
+
+          // Wait for all images to be generated
+          const imageResults = await Promise.all(imagePromises);
+          const validImages = imageResults.filter(img => img !== null);
+          console.log(`Successfully generated ${validImages.length} out of ${postsToGenerate} images`);
+          
+          // Fill in nulls for failed images to maintain array length
+          const paddedImages = Array(postsToGenerate).fill(null);
+          let validIndex = 0;
+          for (let i = 0; i < postsToGenerate; i++) {
+            if (imageResults[i] !== null) {
+              paddedImages[i] = imageResults[i];
+              validIndex++;
+            }
+          }
+          
+          setGeneratedImages(paddedImages);
+        } catch (imageError) {
+          console.error('Error generating images:', imageError);
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+      setImageLoading(false);
     }
   };
 
@@ -190,6 +280,17 @@ function Page() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy text:', err);
+    }
+  };
+
+  const handleDownloadImage = (imageUrl: string, index: number) => {
+    if (imageUrl) {
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `social-media-image-${index + 1}-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -280,6 +381,7 @@ function Page() {
                   {imagePreview && (
                     <div className="mb-4">
                       <div className="relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imagePreview}
                           alt="Preview"
@@ -559,6 +661,27 @@ function Page() {
                         }}></div>
                     </label>
                   </div>
+
+                  <div className="flex items-center space-x-3">
+                    <label htmlFor="generateImage" className="text-lg font-medium text-black">
+                      🖼️ Generate Image
+                    </label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="generateImage"
+                        checked={generateImage}
+                        onChange={(e) => setGenerateImage(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 rounded-full peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" 
+                        style={{ 
+                          backgroundColor: generateImage ? 'gray' : 'white',
+                          borderColor: 'black',
+                          border: '1px solid black'
+                        }}></div>
+                    </label>
+                  </div>
                 </div>
 
                 <button
@@ -569,10 +692,10 @@ function Page() {
                   {loading ? (
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-3"></div>
-                      Generating...
+                      {imageLoading ? 'Generating Post & Image...' : 'Generating Post...'}
                     </div>
                   ) : (
-                    'Generate Posts'
+                    generateImage ? 'Generate Post & Image' : 'Generate Posts'
                   )}
                 </button>
               </form>
@@ -585,18 +708,43 @@ function Page() {
                         <h2 className="text-lg font-semibold text-gray-800">
                           Generated Post {index + 1}
                         </h2>
-                        <button
-                          onClick={() => handleCopy(content)}
-                          className="flex items-center px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800"
-                        >
-                          {copied ? 'Copied! ✓' : 'Copy'}
-                        </button>
+                        <div className="flex gap-2">
+                          {generatedImages[index] && (
+                            <button
+                              onClick={() => handleDownloadImage(generatedImages[index], index)}
+                              className="flex items-center px-3 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800"
+                            >
+                              📥 Download Image
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCopy(content)}
+                            className="flex items-center px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800"
+                          >
+                            {copied ? 'Copied! ✓' : 'Copy'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="p-6 whitespace-pre-wrap">{content}</div>
+                      <div className="p-6">
+                        {/* Display image if available */}
+                        {generatedImages[index] && (
+                          <div className="mb-4 flex justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={generatedImages[index]}
+                              alt={`Generated image for post ${index + 1}`}
+                              className="max-w-full h-auto rounded-xl shadow-lg"
+                              style={{ maxHeight: '400px' }}
+                            />
+                          </div>
+                        )}
+                        <div className="whitespace-pre-wrap">{content}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+
             </div>
           </div>
         </div>

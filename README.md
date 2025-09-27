@@ -15,6 +15,8 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
 - Platform-specific optimizations (e.g., thread creation for Twitter, word limits for LinkedIn)
 - Optional hashtag and emoji integration
 - Multiple post variations from a single prompt
+- AI-powered image generation using Gemini API
+- Download generated images for social media use
 - Modern, responsive UI with a beautiful gradient design
 - Copy-to-clipboard functionality for easy posting
 
@@ -22,6 +24,7 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
 - Next.js 13+ with App Router
 - React for Frontend
 - OpenAI API for AI-Powered Content Generation
+- Google Gemini API for Image Generation
 - Tailwind CSS for Styling
 
 ## Use Cases
@@ -51,7 +54,12 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
    Create a `.env.local` file in the root directory with the following:
     ```bash
     OPENAI_API_KEY=your_openai_api_key
+    GEMINI_API_KEY=your_gemini_api_key
     ```
+   
+   Get your API keys from:
+   - OpenAI: https://platform.openai.com/api-keys
+   - Gemini: https://aistudio.google.com/app/apikey
    
 5. Run the development server:
     ```bash
@@ -69,9 +77,11 @@ Built with Next.js and cutting-edge AI technology, this open-source template ena
    - Word limit (for LinkedIn)
    - Thread creation (for Twitter)
    - Hashtags and emojis
+   - Image generation (optional)
 5. Select the number of posts you want
-6. Click "Generate Posts" and wait for your AI-generated content
+6. Click "Generate Posts" (or "Generate Post & Image" if image generation is enabled)
 7. Use the copy button to easily copy posts to your clipboard
+8. Download generated images for your social media posts
 
 ## Contributing
 
