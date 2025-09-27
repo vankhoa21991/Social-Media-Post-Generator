@@ -13,16 +13,25 @@ const TONE_OPTIONS = [
   'Conversational'
 ] as const;
 
+const MODEL_OPTIONS = [
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+] as const;
+
 type ToneOption = typeof TONE_OPTIONS[number];
 
 interface GeneratePostParams {
   description: string;
   platform: string;
   tone: string;
+  model: string;
   wordLimit?: number;
   makeThread?: boolean;
   includeHashtags: boolean;
   includeEmoji: boolean;
+  imageBase64?: string;
 }
 
 function Page() {
@@ -38,14 +47,86 @@ function Page() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tone, setTone] = useState<ToneOption>('Professional');
+  const [model, setModel] = useState('gemini-2.5-flash');
   const [includeHashtags, setIncludeHashtags] = useState(false);
   const [includeEmoji, setIncludeEmoji] = useState(false);
   const [postsToGenerate, setPostsToGenerate] = useState(1);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Set mounted state after hydration
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const dropdown = target.closest('.dropdown-container');
+      
+      if (showDropdown && !dropdown) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showDropdown]);
+
+  // Handle image upload and conversion
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Image upload triggered');
+    const file = event.target.files?.[0];
+    if (file) {
+      console.log('File selected:', file.name);
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image size should be less than 10MB');
+        return;
+      }
+
+      setSelectedImage(file);
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        setImageBase64(base64String);
+      };
+      reader.readAsDataURL(file);
+      
+      // Close dropdown after selection
+      setShowDropdown(false);
+    }
+  };
+
+  // Remove image
+  const removeImage = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageBase64(null);
+  };
 
   // Don't render anything until after hydration
   if (!mounted) {
@@ -83,10 +164,12 @@ function Page() {
             description, 
             platform, 
             tone,
+            model,
             wordLimit: platform === 'linkedin' ? wordLimit : undefined,
             makeThread,
             includeHashtags,
             includeEmoji,
+            imageBase64: imageBase64 || undefined,
           })
         );
 
@@ -192,19 +275,125 @@ function Page() {
                   <label htmlFor="description" className="block text-lg font-medium mb-3 text-black">
                     What would you like to post about?
                   </label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80 backdrop-blur-sm transition-all border border-gray-200 hover:border-purple-300"
-                    style={{ 
-                      color: '#000000'
-                    }}
-                    rows={4}
-                    placeholder="Enter your post topic or description..."
-                    required
-                  />
+                  
+                  {/* Image Thumbnail Above Textarea */}
+                  {imagePreview && (
+                    <div className="mb-4">
+                      <div className="relative inline-block">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* ChatGPT-style Chat Area */}
+                  <div className="relative">
+                    <div className="relative bg-white border border-gray-300 rounded-2xl hover:border-purple-300 transition-all duration-200">
+                      <textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full px-4 py-4 pr-16 rounded-2xl focus:outline-none resize-none bg-transparent text-gray-900 placeholder-gray-500"
+                        style={{ 
+                          minHeight: '120px',
+                          maxHeight: '300px'
+                        }}
+                        rows={4}
+                        placeholder="What would you like to post about?"
+                        required
+                      />
+                      
+                      {/* Attachment Button */}
+                      <div className="absolute bottom-4 right-4">
+                        <div className="relative dropdown-container">
+                          <button
+                            type="button"
+                            onClick={() => setShowDropdown(!showDropdown)}
+                            className="cursor-pointer w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                            title="Add attachment"
+                          >
+                            <svg
+                              className="w-4 h-4 text-gray-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                          </button>
+                          
+                          {/* Dropdown Menu */}
+                          {showDropdown && (
+                            <div className="absolute bottom-12 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-2 min-w-[160px] z-10">
+                              <label
+                                htmlFor="imageUpload"
+                                className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                              >
+                                <svg
+                                  className="w-4 h-4 mr-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                  />
+                                </svg>
+                                Upload image
+                              </label>
+                              <input
+                                type="file"
+                                id="imageUpload"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                              />
+                              <button
+                                type="button"
+                                className="flex items-center w-full px-4 py-3 text-sm text-gray-400 cursor-not-allowed"
+                                disabled
+                              >
+                                <svg
+                                  className="w-4 h-4 mr-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                  />
+                                </svg>
+                                Upload file
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -283,6 +472,23 @@ function Page() {
                     >
                       {[1, 2, 3, 4, 5].map((num) => (
                         <option key={num} value={num}>{num} post{num > 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="model" className="block text-lg font-medium mb-3 text-black">
+                      AI Model
+                    </label>
+                    <select
+                      id="model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80 backdrop-blur-sm transition-all border border-gray-200 hover:border-purple-300"
+                      style={{ color: '#000000' }}
+                    >
+                      {MODEL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </div>
