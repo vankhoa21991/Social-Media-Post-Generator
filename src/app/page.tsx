@@ -162,30 +162,10 @@ function Page() {
         params.makeThread = makeThread;
       }
 
-      // Generate posts
-      const postPromises = Array(postsToGenerate).fill(null).map(async () => {
-        const response = await fetch('/api/generate-post', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(params),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate post');
-        }
-
-        const data = await response.json();
-        return data.content;
-      });
-
-      const posts = await Promise.all(postPromises);
-      setGeneratedContent(posts);
-
       // Generate images if enabled
+      const paddedImages = Array(postsToGenerate).fill(null);
       if (generateImage) {
-        const imagePromises = posts.map(async (post) => {
+        const imagePromises = Array(postsToGenerate).fill(null).map(async () => {
           try {
             const response = await fetch('/api/generate-image', {
               method: 'POST',
@@ -193,8 +173,9 @@ function Page() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                description: post.substring(0, 500), // Limit description length
+                description: params.description.substring(0, 500), // Limit description length
                 platform,
+                model,
                 imageBase64: imageBase64 || undefined,
               }),
             });
@@ -218,7 +199,6 @@ function Page() {
         console.log(`Successfully generated ${validImages.length} out of ${postsToGenerate} images`);
         
         // Fill in nulls for failed images to maintain array length
-        const paddedImages = Array(postsToGenerate).fill(null);
         for (let i = 0; i < postsToGenerate; i++) {
           if (imageResults[i] !== null) {
             paddedImages[i] = imageResults[i];
@@ -227,6 +207,29 @@ function Page() {
         
         setGeneratedImages(paddedImages);
       }
+
+      // Generate posts
+      const postPromises = paddedImages.map(async (image) => {
+        const response = await fetch('/api/generate-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({...params, imageBase64: image || imageBase64 || undefined}),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate post');
+        }
+
+        const data = await response.json();
+        return data.content;
+      });
+
+      const posts = await Promise.all(postPromises);
+      setGeneratedContent(posts);
+
+      
     } catch (error) {
       console.error('Error:', error);
     } finally {
