@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
+import { getImageGenerationPrompt } from '../prompts/imagePrompts';
 
 // Helper function to convert image to PNG format for DALL-E 2
 const convertToPNG = async (imageBuffer: Buffer, mimeType: string): Promise<Buffer> => {
@@ -69,14 +70,7 @@ export const generateImageWithGemini = async (
   platform: string,
   imageBase64?: string
 ) => {
-  const textPrompt = `Create a professional, high-quality image for a ${platform} social media post about: ${description}. 
-The image should be:
-- Visually appealing and modern
-- Relevant to the topic: ${description}
-- Appropriate for ${platform} platform
-- Professional and engaging
-- High resolution and clear
-- Suitable for social media sharing`;
+  const textPrompt = getImageGenerationPrompt(platform, description);
 
   // Build the prompt array based on whether we have an input image
   let prompt;
@@ -140,20 +134,10 @@ export const generateImageWithOpenAI = async (
   imageBase64?: string,
   model: string = "dall-e-3"
 ) => {
-  const textPrompt = `Create a professional, high-quality image for a ${platform} social media post about: ${description}. 
-The image should be:
-- Visually appealing and modern
-- Relevant to the topic: ${description}
-- Appropriate for ${platform} platform
-- Professional and engaging
-- High resolution and clear
-- Suitable for social media sharing`;
+  const textPrompt = getImageGenerationPrompt(platform, description);
 
   if (imageBase64 && model.includes('gpt-4')) {
     // Use OpenAI's image editing API with DALL-E 2
-    const editPrompt = `Edit this image to make it more suitable for a ${platform} social media post about: ${description}. 
-    Apply appropriate visual enhancements, filters, or modifications to better match the content theme. 
-    Keep the core elements but enhance the visual appeal for social media.`;
 
     // Extract base64 data and mime type
     let base64Data, mimeType;
