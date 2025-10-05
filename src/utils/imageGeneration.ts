@@ -2,36 +2,6 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { getImageGenerationPrompt } from '../prompts/imagePrompts';
 
-// Helper function to convert image to PNG format for DALL-E 2
-const convertToPNG = async (imageBuffer: Buffer, mimeType: string): Promise<Buffer> => {
-  // If already PNG, return as is
-  if (mimeType === 'image/png') {
-    return imageBuffer;
-  }
-  
-  // For JPEG, try to convert using a simple approach
-  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-    console.log('Attempting to convert JPEG to PNG for DALL-E 2 compatibility...');
-    
-    try {
-      // Create a data URL and try to convert using browser APIs
-      const dataUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
-      
-      // For now, we'll return the original buffer but with PNG MIME type
-      // In a production environment, you would use a proper image conversion library
-      console.warn('JPEG to PNG conversion not fully implemented. Using original image with PNG MIME type.');
-      return imageBuffer;
-    } catch (error) {
-      console.warn('JPEG conversion failed:', error);
-      return imageBuffer;
-    }
-  }
-  
-  // For other formats, warn and return as is
-  console.warn(`Image format ${mimeType} detected. DALL-E 2 requires PNG format. Consider converting your image to PNG manually.`);
-  return imageBuffer;
-};
-
 
 export const getImageGenerationClient = (model: string) => {
   const isGeminiModel = model.includes('gemini');
@@ -85,7 +55,7 @@ export const generateImageWithGemini = async (
       base64Data = imageBase64;
       mimeType = 'image/png';
     }
-    
+
     prompt = [
       { text: textPrompt },
       {
@@ -111,12 +81,12 @@ export const generateImageWithGemini = async (
       if (part.inlineData) {
         const imageData = part.inlineData.data;
         const mimeType = part.inlineData.mimeType || 'image/png';
-        
+
         console.log('Found image data, mimeType:', mimeType);
-        return { 
+        return {
           imageData,
           mimeType,
-          success: true 
+          success: true
         };
       } else if (part.text) {
         console.log('Response contains text instead of image:', part.text);
@@ -151,35 +121,34 @@ export const generateImageWithOpenAI = async (
     }
 
     try {
-      // Convert base64 to Buffer
-      const originalBuffer = Buffer.from(base64Data, 'base64');
-      
-      // Convert to PNG format if needed
-      const imageBuffer = await convertToPNG(originalBuffer, mimeType);
-      
-      // Check file size (must be less than 4 MB)
-      const fileSizeInMB = imageBuffer.length / (1024 * 1024);
-      if (fileSizeInMB > 4) {
-        console.error(`Image too large: ${fileSizeInMB.toFixed(2)}MB. Must be less than 4MB.`);
-        throw new Error('Image too large for editing');
-      }
-      
-      // Create File object with PNG format
-      const imageFile = new File([new Uint8Array(imageBuffer)], 'image.png', { type: 'image/png' });
-      
-      // Use OpenAI's image editing API with dall-e-2
-      const response = await client.images.edit({
-        model: "dall-e-2", // dall-e-2 supports image editing
-        image: imageFile,
-        prompt: textPrompt,
-        size: "1024x1024", // Specify size for dall-e-2
-        response_format: "b64_json"
+      const response = await client.responses.create({
+        model: "gpt-4.1", // need to enable this model
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: textPrompt,
+              },
+              {
+                type: "input_image",
+                detail: "low",
+                image_url: `data:image/jpeg;base64,${base64Data}`,
+              }
+            ]
+          }
+        ],
+        tools: [{ type: "image_generation" }]
       });
 
-      if (response.data && response.data.length > 0) {
-        const imageData = response.data[0].b64_json;
+      const imageData = response.output
+        .filter((output) => output.type === "image_generation_call")
+        .map((output) => output.result);
+
+      if (imageData.length > 0) {
         return {
-          imageData,
+          imageData: imageData[0],
           mimeType: 'image/png',
           success: true
         };
