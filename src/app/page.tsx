@@ -20,6 +20,22 @@ const MODEL_OPTIONS = [
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
 ] as const;
 
+const STRATEGY_OPTIONS = [
+  { value: 'default', label: 'Default Strategy' },
+  { value: 'before-after', label: 'Before & After Renovation' },
+  { value: 'interior-lifestyle', label: 'Interior Lifestyle' },
+  { value: 'front-door', label: 'Front Door Showcase' },
+  { value: 'energy-efficiency', label: 'Energy Efficiency' },
+  { value: 'team-installation', label: 'Team Installation' },
+  { value: 'quality-control', label: 'Quality Control' },
+  { value: 'testing-facility', label: 'Testing Facility' },
+  { value: 'customer-satisfaction', label: 'Customer Satisfaction' },
+  { value: 'infographic', label: 'Educational Infographic' },
+  { value: 'story-background', label: 'Instagram Story Background' },
+  { value: 'location-showcase', label: 'Location Showcase' },
+  { value: 'competition', label: 'Competition/Engagement' },
+] as const;
+
 type ToneOption = typeof TONE_OPTIONS[number];
 
 interface GeneratePostParams {
@@ -32,6 +48,7 @@ interface GeneratePostParams {
   includeHashtags: boolean;
   includeEmoji: boolean;
   imageBase64?: string;
+  strategy?: string;
 }
 
 function Page() {
@@ -48,6 +65,7 @@ function Page() {
   const [copied, setCopied] = useState(false);
   const [tone, setTone] = useState<ToneOption>('Professional');
   const [model, setModel] = useState('gemini-2.5-flash');
+  const [strategy, setStrategy] = useState('default');
   const [includeHashtags, setIncludeHashtags] = useState(false);
   const [includeEmoji, setIncludeEmoji] = useState(false);
   const [postsToGenerate, setPostsToGenerate] = useState(1);
@@ -117,6 +135,7 @@ function Page() {
     setImageBase64(null);
   };
 
+
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -149,6 +168,7 @@ function Page() {
         platform,
         tone,
         model,
+        strategy,
         includeHashtags,
         includeEmoji,
         imageBase64: imageBase64 || undefined,
@@ -195,6 +215,7 @@ function Page() {
               body: JSON.stringify({
                 description: post.substring(0, 500), // Limit description length
                 platform,
+                strategy,
                 imageBase64: imageBase64 || undefined,
               }),
             });
@@ -287,6 +308,7 @@ function Page() {
                         </div>
                       </div>
                     )}
+
                     
                     {/* ChatGPT-style Chat Area */}
                     <div className="relative">
@@ -481,6 +503,23 @@ function Page() {
                         style={{ color: '#000000' }}
                       >
                         {MODEL_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="strategy" className="block text-lg font-medium mb-3 text-black">
+                        🎨 Image Strategy
+                      </label>
+                      <select
+                        id="strategy"
+                        value={strategy}
+                        onChange={(e) => setStrategy(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80 backdrop-blur-sm transition-all border border-gray-200 hover:border-purple-300"
+                        style={{ color: '#000000' }}
+                      >
+                        {STRATEGY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
