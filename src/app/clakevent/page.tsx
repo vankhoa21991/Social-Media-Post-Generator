@@ -21,20 +21,17 @@ const MODEL_OPTIONS = [
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
 ] as const;
 
-const STRATEGY_OPTIONS = [
+// CLAKEVENT specific strategies
+const CLAKEVENT_STRATEGY_OPTIONS = [
   { value: 'default', label: 'Default Strategy' },
-  { value: 'before-after', label: 'Before & After Renovation' },
-  { value: 'interior-lifestyle', label: 'Interior Lifestyle' },
-  { value: 'front-door', label: 'Front Door Showcase' },
-  { value: 'energy-efficiency', label: 'Energy Efficiency' },
-  { value: 'team-installation', label: 'Team Installation' },
-  { value: 'quality-control', label: 'Quality Control' },
-  { value: 'testing-facility', label: 'Testing Facility' },
-  { value: 'customer-satisfaction', label: 'Customer Satisfaction' },
-  { value: 'infographic', label: 'Educational Infographic' },
-  { value: 'story-background', label: 'Instagram Story Background' },
-  { value: 'location-showcase', label: 'Location Showcase' },
-  { value: 'competition', label: 'Competition/Engagement' },
+  { value: 'chill-lounge-evening', label: 'Chill Lounge Evening' },
+  { value: 'modern-corporate-event', label: 'Modern Corporate Event' },
+  { value: 'colorful-children-birthday', label: "Colorful Children's Birthday" },
+  { value: 'team-pose-moment', label: 'Team Pose Moment' },
+  { value: 'wedding-couple', label: 'Wedding Couple' },
+  { value: 'group-friends-enjoying', label: 'Group of Friends Enjoying' },
+  { value: 'stylish-tent-cocktail-bar', label: 'Stylish Tent Cocktail Bar' },
+  { value: 'dj-stage-lighting', label: 'DJ Stage with Lighting' },
 ] as const;
 
 type ToneOption = typeof TONE_OPTIONS[number];
@@ -50,9 +47,10 @@ interface GeneratePostParams {
   includeEmoji: boolean;
   imageBase64?: string;
   strategy?: string;
+  client?: string;
 }
 
-function Page() {
+function ClakeventPage() {
   // Client-side only state
   const [mounted, setMounted] = useState(false);
   
@@ -76,11 +74,27 @@ function Page() {
   const [generateImage, setGenerateImage] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   // Set mounted state after hydration
   useEffect(() => {
     setMounted(true);
+    // Load reference images from clakevent folder
+    loadReferenceImages();
   }, []);
+
+  // Load reference images for context
+  const loadReferenceImages = async () => {
+    try {
+      const response = await fetch('/api/clakevent-images');
+      const data = await response.json();
+      if (data.images && data.images.length > 0) {
+        setReferenceImages(data.images);
+      }
+    } catch (error) {
+      console.error('Error loading reference images:', error);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -136,7 +150,6 @@ function Page() {
     setImageBase64(null);
   };
 
-
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -150,7 +163,7 @@ function Page() {
   const handleDownloadImage = (imageData: string, index: number) => {
     const link = document.createElement('a');
     link.href = imageData;
-    link.download = `generated-image-${index + 1}.png`;
+    link.download = `clakevent-image-${index + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -173,6 +186,7 @@ function Page() {
         includeHashtags,
         includeEmoji,
         imageBase64: imageBase64 || undefined,
+        client: 'clakevent',
       };
 
       if (platform === 'linkedin') {
@@ -214,10 +228,12 @@ function Page() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                description: post.substring(0, 500), // Limit description length
+                description: post.substring(0, 500),
                 platform,
                 strategy,
                 imageBase64: imageBase64 || undefined,
+                client: 'clakevent',
+                referenceImages: referenceImages, // Include reference images for context
               }),
             });
 
@@ -266,13 +282,13 @@ function Page() {
             <div className="flex gap-4">
               <Link 
                 href="/" 
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold"
+                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Main Generator
               </Link>
               <Link 
                 href="/clakevent" 
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold"
               >
                 CLAKEVENT
               </Link>
@@ -282,10 +298,10 @@ function Page() {
             <h1 className="text-4xl font-bold mb-4 text-black bg-clip-text" style={{
               textShadow: '0 2px 10px rgba(0,0,0,0.05)'
             }}>
-              Generate social media posts in seconds
+              CLAKEVENT - Social Media Post Generator
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Stay consistent, creative, and productive with our free AI social media post generator.
+              Generate engaging social media posts for CLAKEVENT with AI-powered content creation.
             </p>
           </div>
         </div>
@@ -397,26 +413,6 @@ function Page() {
                                   onChange={handleImageUpload}
                                   className="hidden"
                                 />
-                                <button
-                                  type="button"
-                                  className="flex items-center w-full px-4 py-3 text-sm text-gray-400 cursor-not-allowed"
-                                  disabled
-                                >
-                                  <svg
-                                    className="w-4 h-4 mr-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                    />
-                                  </svg>
-                                  Upload file
-                                </button>
                               </div>
                             )}
                           </div>
@@ -536,7 +532,7 @@ function Page() {
                         className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80 backdrop-blur-sm transition-all border border-gray-200 hover:border-purple-300"
                         style={{ color: '#000000' }}
                       >
-                        {STRATEGY_OPTIONS.map((option) => (
+                        {CLAKEVENT_STRATEGY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
@@ -722,4 +718,6 @@ function Page() {
   );
 }
 
-export default Page;
+export default ClakeventPage;
+
+
